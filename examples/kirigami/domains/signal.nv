@@ -2,7 +2,7 @@
 
 type attribute = dict[int, int]
 
-symbolic ext : dict[int, int]
+symbolic external : dict[int, int]
 
 let nodes = 6
 
@@ -24,7 +24,7 @@ let init node =
     | 2n -> m[2 := 0]
     | 3n -> m[3 := 0]
     | 4n -> m[4 := 0]
-    | 5n -> ext
+    | 5n -> external
 
 let cost edge = match edge with
   | 0~1 -> 1
@@ -44,6 +44,7 @@ let cost edge = match edge with
 (* Measures the increase in decay as the signal travels. *)
 let trans edge x = map (fun decay -> decay + (cost edge)) x
 
+(* Join the two maps, taking the minimum for each key *)
 let merge node x y = combine (fun a b -> if a < b then a else b) x y
 
 (* Check that every internal node's signal decay is not above a certain value. *)

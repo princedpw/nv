@@ -3,7 +3,6 @@
 
 type attribute = (int, bool)
 
-
 let pred_t x = true
 let pred_a x = let (i, b) = x in i < 3 && b
 let pred_b x = let (i, b) = x in i < 3 || b
@@ -11,8 +10,11 @@ let pred_c x = let (i, b) = x in i < 4 && b
 let pred_d x = let (i, b) = x in b
 let pred_e x = let (i, b) = x in i < 4
 
-                                   symbolic ext : (int, bool)
-                                     require (pred_t ext)
+symbolic ext : (int, bool)
+require (pred_t ext)
+
+symbolic waypoint : tnode
+require (waypoint <n 5n)
 
 let nodes = 6
 
@@ -27,11 +29,11 @@ let edges = {
 }
 
 let init node = match node with
-  | 0n -> (0, false)
-  | 1n -> (16, false)
-  | 2n -> (16, true)
-  | 3n -> (16, false)
-  | 4n -> (16, false)
+  | 0n -> (0, node = waypoint)
+  | 1n -> (16, node = waypoint)
+  | 2n -> (16, node = waypoint)
+  | 3n -> (16, node = waypoint)
+  | 4n -> (16, node = waypoint)
   | 5n -> ext
 
 let cost edge = match edge with
@@ -56,4 +58,6 @@ let merge node x y =
   let (iy, by) = y in
   (if ix < iy then ix else iy, bx || by)
 
-let assert node x = pred_a x
+let assert node x = match node with
+  | 5n -> true
+  | _ -> pred_c x
