@@ -1,0 +1,53 @@
+(* 4 nodes with a tuple.
+ *)
+
+type attribute = (int, int)
+
+let nodes = 4
+
+let edges = {
+  0=1;
+  1=2;
+  2=3;
+}
+
+(* Merge *)
+let min x y = if x < y then x else y
+
+let merge n x y =
+    let (ax, bx) = x in
+    let (ay, by) = y in
+    (min ax ay, min bx by)
+
+(* Transfer *)
+let trans edge x = let (a, b) = x in (a + 1, b + 1)
+
+(* Init *)
+let init n = match n with
+  | 0n -> (0, 15)
+  | 1n -> (15, 15)
+  | 2n -> (15, 15)
+  | 3n -> (15, 0)
+
+(* Partition *)
+let partition node = match node with
+  | 0n -> 0u8
+  | 1n -> 1u8
+  | 2n -> 2u8
+  | 3n -> 3u8
+
+let interface edge =
+  let le x y =
+    let (ax, bx) = x in
+    let (ay, by) = y in
+    ax <= ay && bx <= by
+  in
+  match edge with
+  | 0~1 -> Some (fun x -> le x (0, 15))
+  | 1~0 -> Some (fun x -> le x (15, 2))
+  | 1~2 -> Some (fun x -> le x (1, 15))
+  | 2~1 -> Some (fun x -> le x (15, 1))
+  | 2~3 -> Some (fun x -> le x (2, 15))
+  | 3~2 -> Some (fun x -> le x (15, 0))
+
+let assert node x = let (a, b) = x in a <= 3 && b <= 3

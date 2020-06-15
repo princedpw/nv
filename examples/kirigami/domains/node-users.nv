@@ -1,0 +1,62 @@
+(* A network where nodes can only accept the traffic of a certain number of neighbors. *)
+
+type traffic = { users: int; cost: int; }
+type attribute = traffic
+
+symbolic external : traffic
+
+let nodes = 6
+
+let edges = {
+    0=1;
+    1=2;
+    2=3;
+    0=2;
+    3=4;
+    1=4;
+    5-3;
+}
+
+let init node =
+    match node with
+    | 0n -> { users = 1; cost = 0; }
+    | 1n -> { users = 1; cost = 16; }
+    | 2n -> { users = 1; cost = 16; }
+    | 3n -> { users = 1; cost = 16; }
+    | 4n -> { users = 1; cost = 16; }
+    | 5n -> external
+
+let cost edge = match edge with
+  | 0~1 -> 1
+  | 1~0 -> 1
+  | 1~2 -> 3
+  | 2~1 -> 3
+  | 0~2 -> 2
+  | 2~0 -> 2
+  | 2~3 -> 3
+  | 3~2 -> 3
+  | 3~4 -> 1
+  | 4~3 -> 1
+  | 1~4 -> 1
+  | 4~1 -> 1
+  | 5~3 -> 0
+
+(* Measures the delay as the message travels. *)
+let trans edge x =
+  let cost = x.cost + 1 + (if x.users > 1 then cost edge else 0) in
+  { users = x.users + 1; cost = cost; }
+
+(* Pick the cheapest of the two paths. If there are equal, pick the one
+ * with fewer users.
+ *)
+let merge node x y =
+  if x.cost < y.cost then x else
+  if x.cost = y.cost && x.users < y.users then x else
+  y
+
+(* Check that every internal node's signal decay is not above a certain value. *)
+(* We say that if this is true then the node is "reachable". *)
+let assert node x = match node with
+  (* dummy external node *)
+  | 5n -> true
+  | _ -> x.users < 3 && x.cost <= 5

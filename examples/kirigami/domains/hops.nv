@@ -10,11 +10,13 @@ let pred_c x = let (i, b) = x in i < 4 && b
 let pred_d x = let (i, b) = x in b
 let pred_e x = let (i, b) = x in i < 4
 
+(* External information from outside the network. *)
 symbolic ext : (int, bool)
-require (pred_t ext)
+require (let (i, b) = ext in i > 2 && !b)
 
+(* A waypoint node that must be on each node's shortest path. *)
 symbolic waypoint : tnode
-require (waypoint <n 5n)
+require (waypoint = 1n)
 
 let nodes = 6
 
@@ -36,6 +38,7 @@ let init node = match node with
   | 4n -> (16, node = waypoint)
   | 5n -> ext
 
+(* The cost associated with a particular edge. *)
 let cost edge = match edge with
   | 0~1 -> 1
   | 1~0 -> 1
@@ -53,10 +56,13 @@ let cost edge = match edge with
 
 let trans edge x = let (i, b) = x in (i + (cost edge), b)
 
+(* merge keeps the shorter of the two routes.
+ * We want to track if the shorter route is via the waypoint or not.
+ *)
 let merge node x y =
   let (ix, bx) = x in
   let (iy, by) = y in
-  (if ix < iy then ix else iy, bx || by)
+  if ix < iy then (ix, bx || (node = waypoint)) else (iy, by || (node = waypoint))
 
 let assert node x = match node with
   | 5n -> true
