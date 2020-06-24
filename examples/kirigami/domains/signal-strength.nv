@@ -1,0 +1,91 @@
+(* A network where we send signals which decay as they travel. *)
+
+(* A map from addresses of nodes to the decay of their signal at this node. *)
+type attribute = dict[int, option[int]]
+
+(* The maximum strength of a signal *)
+symbolic strength : int
+require (strength > 1)
+
+let nodes = 5
+
+let edges = {
+    0=1;
+    1=2;
+    2=3;
+    0=2;
+    3=4;
+    1=4;
+}
+
+let init node =
+    let m = createDict None in
+    match node with
+    | 0n -> m[0 := Some 0]
+    | 1n -> m[1 := Some 0]
+    | 2n -> m[2 := Some 0]
+    | 3n -> m[3 := Some 0]
+    | 4n -> m[4 := Some 0]
+
+let cost edge = match edge with
+  | 0~1 -> 1
+  | 1~0 -> 1
+  | 1~2 -> 3
+  | 2~1 -> 3
+  | 0~2 -> 2
+  | 2~0 -> 2
+  | 2~3 -> 3
+  | 3~2 -> 3
+  | 3~4 -> 1
+  | 4~3 -> 1
+  | 1~4 -> 1
+  | 4~1 -> 1
+
+let decay edge signal = 
+    match signal with
+      | Some x -> let decayed = x + 1 in 
+        if decayed > strength then None else Some decayed
+      | None -> None
+
+(* Measures the increase in decay as the signal travels. *)
+let trans edge x = map (fun s -> decay edge s) x
+
+let min_decay a b = match (a, b) with
+  | (Some x, Some y) -> if x < y then a else b
+  | (None, _) -> b
+  | (_, None) -> a
+
+(* Join the two maps, taking the minimum for each key *)
+let merge node x y = combine min_decay x y
+
+let isSome x = match x with
+  | Some _ -> true
+  | None -> false
+
+(* Check that each node can reach its specified addresses. *)
+let assert node m = match node with
+  | 0n -> isSome (m[0]) && isSome (m[1]) && isSome (m[2]) && isSome (m[4])
+  | 1n -> isSome (m[0]) && isSome (m[1]) && isSome (m[3]) && isSome (m[4])
+  | 2n -> isSome (m[0]) && isSome (m[2])
+  | 3n -> isSome (m[4]) && isSome (m[3]) && isSome (m[1])
+  | 4n -> isSome (m[0]) && isSome (m[1]) && isSome (m[3]) && isSome (m[4])
+
+let partition node = match node with
+  | 0n -> 0u8
+  | 1n -> 0u8
+  | 2n -> 0u8
+  | 3n -> 1u8
+  | 4n -> 1u8
+
+let interface edge = 
+  let hasSignal m addr s =
+    match m[addr] with
+    | Some x -> x <= s
+    | None -> false
+  in
+  match edge with
+  | 1~4 -> Some (fun a -> hasSignal a 0 2 && hasSignal a 1 1)
+  | 2~3 -> Some (fun a -> true)
+  | 3~2 -> Some (fun a -> true)
+  | 4~1 -> Some (fun a -> hasSignal a 4 1 && hasSignal a 3 2)
+  | _ -> None

@@ -3,6 +3,7 @@
 type attribute = dict[int, int]
 
 symbolic external : dict[int, int]
+require (external[6] <= 4)
 
 let nodes = 6
 
@@ -52,4 +53,4 @@ let merge node x y = combine (fun a b -> if a < b then a else b) x y
 let assert node m = match node with
   (* dummy external node *)
   | 5n -> true
-  | _ -> m[0] < 4 && m[1] < 4 && m[2] < 5 && m[3] < 4
+  | _ -> m[0] < 4 && m[1] < 4 && m[2] < 4 && m[3] < 4 && m[4] < 4 && m[6] < 4

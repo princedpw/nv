@@ -1,0 +1,67 @@
+(* An example of a network where we want to enforce 
+   that 2 domains don't share information. *)
+
+type route = { length: int; secret: bool }
+type attribute = option[route]
+
+let nodes = 9
+
+let edges = {
+  0=1;
+  1=2;
+  0=2;
+  2=3;
+  1=4;
+  3=4;
+  5=6;
+  6=7;
+  7=8;
+  2=5;
+  3=5;
+  3=8;
+}
+
+let init n = match n with
+  | 0n -> Some { length = 0; secret = true }
+  | _ -> None
+
+let trans edge x = match x with
+| None -> None
+| Some r -> Some (let length = r.length + 1 in
+  match edge with
+  | 2~5 -> { length = length; secret = false }
+  | 3~5 -> { length = length; secret = false }
+  | 3~8 -> { length = length; secret = false }
+  | _ -> { length = length; secret = r.secret })
+
+let merge node x y = match (x,y) with
+  | (_, None) -> x
+  | (None, _) -> y
+  | (Some a, Some b) ->
+    if a.length < b.length then x else y
+
+let assert node soln = match soln with
+  | Some r -> if node >n 4n then !r.secret else true
+  | None -> false
+
+let partition node = if node <n 5n then 0u8 else 1u8
+
+let interface edge = 
+  let notSecret a = match a with
+    | Some r -> true
+    | None -> false
+  in
+  let any a = true in
+  match edge with
+  (* The restriction that the secret will not be leaked 
+     is handled by the cross-partition function, which is
+     executed along the input~base edge. Hence, we don't
+     need to actually ensure that the secret is not being 
+     sent at the output end because of this behavior. *)
+  | 2~5 -> Some notSecret
+  | 3~5 -> Some notSecret
+  | 3~8 -> Some notSecret
+  | 5~2 -> Some any
+  | 5~3 -> Some any
+  | 8~3 -> Some any
+  | _ -> None

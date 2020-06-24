@@ -66,4 +66,5 @@ let merge node x y =
 
 let assert node x = match node with
   | 5n -> true
-  | _ -> pred_c x
+  | 0n -> let (i, b) = x in i = 0
+  | _ -> pred_e x

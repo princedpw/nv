@@ -1,0 +1,82 @@
+(* An example of a network where we split a budget across two domains. *)
+
+type attribute = option[int]
+   
+let nodes = 9
+   
+let edges = {
+  0=1;
+  1=2;
+  0=2;
+  2=3;
+  1=4;
+  3=4;
+  5=6;
+  6=7;
+  7=8;
+  2=5;
+  3=5;
+  3=8;
+}
+
+symbolic budget1 : int
+symbolic budget2 : int
+require (budget1 + budget2) < 10
+
+let init n = match n with
+  | 0n -> Some 0
+  | _ -> None
+
+let cost edge = match edge with
+  | 0=1 -> 1
+  | 1=2 -> 3
+  | 0=2 -> 2
+  | 1=4 -> 2
+  | 2=3 -> 3
+  | 3=4 -> 1
+  | 5=6 -> 1
+  | 6=7 -> 1
+  | 7=8 -> 1
+  | 2=5 -> 1
+  | 3=5 -> 1
+  | 3=8 -> 1
+
+let trans edge x = match x with
+| None -> None
+| Some c -> Some (c + (cost edge))
+
+let merge node x y = match (x,y) with
+  | (_, None) -> x
+  | (None, _) -> y
+  | (Some a, Some b) ->
+    if a < b then x else y
+
+let sol = solution { init = init; trans = trans; merge = merge }
+
+let sumDomain1 sol = match sol[0n] with
+  | Some c0 -> match sol[1n] with
+    | Some c1 -> match sol[2n] with
+      | Some c2 -> match sol[3n] with
+        | Some c3 -> match sol[4n] with
+          | Some c4 -> Some (c0 + c1 + c2 + c3 + c4)
+          | None -> None
+        | None -> None
+      | None -> None
+    | None -> None
+  | None -> None
+
+let sumDomain2 sol = match sol[5n] with
+  | Some c5 -> match sol[6n] with
+    | Some c6 -> match sol[7n] with
+      | Some c7 -> match sol[8n] with
+        | Some c8 -> Some (c5 + c6 + c7 + c8)
+        | None -> None
+      | None -> None
+    | None -> None
+  | None -> None
+
+assert (match sumDomain1 sol with
+  | Some c1 -> c1 <= budget1
+  | None -> false) && (match sumDomain2 sol with
+    | Some c2 -> c2 <= budget2
+    | None -> false)

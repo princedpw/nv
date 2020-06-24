@@ -1,0 +1,82 @@
+(* A network where we want to ensure that the 
+   total number of hops is beneath some threshold. *)
+
+(* A route is simply a length and a node to hop to. *)
+type route = { length: int; nexthop: tnode }
+(* Each node either stores Some route or None (meaning no route) *)
+type attribute = option[route]
+
+(* The number of nodes in the network. Nodes are labelled from 0 to nodes-1. *)
+let nodes = 5
+
+(* The list of edges in the network.
+   a~b means an edge from a to b.
+   a=b means a~b and b~a. *)
+let edges = {
+  0=1;
+  1=2;
+  2=3;
+  0=2;
+  3=4;
+  1=4;
+}
+
+(* The initial value at each node in the network.
+   We are treating node 0 as the destination:
+   node 0 starts with a route to itself, while all
+   other nodes have not yet determined their route to 0.
+ *)
+let init node = match node with
+  | 0n -> Some { length = 0; nexthop = 0n }
+  | 1n -> None
+  | 2n -> None
+  | 3n -> None
+  | 4n -> None
+
+(* How to send the state at a node to a neighbor:
+   - If no route is stored, send "No route".
+   - Otherwise, increment the length by 1.
+   - Update the next hop to be the sending node.
+ *)
+let trans edge x = match x with
+  | None -> None
+  | Some r -> (match edge with 
+    | a~b -> Some { length = r.length + 1; nexthop = a })
+
+(* How to update the state at a node given a new route:
+   - Prefer some route to no route.
+   - Prefer a route with shorter length to a longer router.
+   - Break ties based on smallest node number.
+ *)
+let merge node x y = match (x,y) with
+  | (_, None) -> x
+  | (None, _) -> y
+  | (Some a, Some b) ->
+    if a.length < b.length then x else
+    if a.nexthop <n b.nexthop then x else y
+
+let assert node x = match x with
+  | None -> false
+  | Some r -> r.length < 3
+
+let partition node = if node <n 3n then 0u8 else 1u8
+
+let interface edge =
+  let route a l h = match a with
+    | Some r -> r.length < l && r.nexthop = h
+    | None -> false
+  in
+  match edge with
+  | 1~4 -> Some (fun a -> route a 1 1n)
+  | 2~3 -> Some (fun a -> route a 1 2n)
+  | 3~2 -> Some (fun a -> true)
+  | 4~1 -> Some (fun a -> true)
+
+symbolic h_1_4 : option[route]
+symbolic h_2_3 : option[route]
+require (match h_1_4 with
+  | Some r -> r.length < 1 && r.nexthop = 1n
+  | None -> false)
+require (match h_2_3 with
+  | Some r -> r.length < 1 && r.nexthop = 2n
+  | None -> false)
