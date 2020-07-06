@@ -1,0 +1,95 @@
+(* A network that tests whether traffic that starts at a GDPR node 
+   only travels through other GDPR nodes. *)
+
+type bgp = { lp: int; aslen: int; comms: set[int]}
+(* Track BGP routes along with an indicator as to whether they are via a GDPR node. *)
+(* Each node keeps track of two routes. 
+   One for European data (zeroth index), 
+   one for non-European data (first index). *)
+type attribute = (option[bgp], option[bgp])
+(* Two community tags: 0 for GDPR, 1 for non-GDPR *)
+
+let nodes = 7
+(* 
+     1    4
+   /  \  / \
+  0    3    6
+   \  / \  /
+    2 -- 5
+  
+  Nodes 0, 1, 3, 4 and 6 implement GDPR data privacy rules.
+  Any traffic that starts at one of these nodes can only travel along
+  the top path. /\/\
+*)
+let edges = {
+  0=1;
+  0=2;
+  1=3;
+  2=3;
+  2=5;
+  3=4;
+  3=5;
+  4=6;
+  5=6;
+}
+
+let init node = match node with
+ | 0n -> (Some { lp = 100; aslen = 0; comms = {1}}, Some { lp = 100; aslen = 0; comms = {0}})
+ | _ -> (None, None)
+
+let transferBgp edge obgp =
+  let transferNonGDPR obgp = match obgp with
+    | Some bgp -> if bgp.comms[1] then None else Some { lp = bgp.lp; aslen = bgp.aslen + 1; comms = bgp.comms[0 := true] }
+    | None -> None
+  in
+  match edge with
+    (* Non-GDPR edges *)
+    | 6~5 -> transferNonGDPR obgp
+    | 5~6 -> transferNonGDPR obgp
+    | 5~3 -> transferNonGDPR obgp
+    | 5~2 -> transferNonGDPR obgp
+    | 3~5 -> transferNonGDPR obgp
+    | 3~2 -> transferNonGDPR obgp
+    | 2~5 -> transferNonGDPR obgp
+    | 2~3 -> transferNonGDPR obgp
+    | 2~0 -> transferNonGDPR obgp
+    | 0~2 -> transferNonGDPR obgp
+    (* GDPR edges *)
+    | _ -> (match obgp with
+      | Some bgp -> Some { lp = bgp.lp; aslen = bgp.aslen + 1; comms = bgp.comms[1 := true] }
+      | None -> None)
+
+let trans edge x = let (euro, noneuro) = x in
+  (transferBgp edge euro, transferBgp edge noneuro)
+
+let bestBgp b1 b2 = if (b1.lp > b2.lp) || (b1.lp = b2.lp && b1.aslen < b2.aslen) then b1 else b2
+
+let bestRoute o1 o2 = match (o1, o2) with
+  | (None, _) -> o2
+  | (_, None) -> o1
+  | (Some b1, Some b2) -> Some (bestBgp b1 b2)
+
+let merge node x y = 
+  let (xeuro, xnon) = x in 
+  let (yeuro, ynon) = y in
+  (bestRoute xeuro yeuro, bestRoute xnon ynon)
+
+let assertLen x len =
+  match (x, len) with
+  | (None, None) -> true
+  | (None, _) -> false
+  | (_, None) -> false
+  | (Some b, Some l) -> b.aslen = l
+
+let assertBGP x len1 len2 =
+  let (x1, x2) = x in
+  (assertLen x1 len1) && (assertLen x2 len2)
+
+let assert node x = match node with
+  | 0n -> assertBGP x (Some 0) (Some 0)
+  | 1n -> assertBGP x (Some 1) (Some 1)
+  | 2n -> assertBGP x None (Some 1)
+  | 3n -> assertBGP x (Some 2) (Some 2)
+  | 4n -> assertBGP x (Some 3) (Some 3)
+  | 5n -> assertBGP x None (Some 2)
+  | 6n -> assertBGP x (Some 4) (Some 3)

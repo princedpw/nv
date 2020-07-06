@@ -1,0 +1,36 @@
+(* Edge capacities. *)
+
+type route = { l: int; h: tnode }
+type attribute = (option[route], dict[tedge, int])
+
+let nodes = 3
+
+let edges = {
+  0=1;
+  1=2;
+}
+
+let init node = 
+  let es = createDict 0 in
+  if node = 0n then (Some { l = 0; h = 0n }, es) else (None, es)
+
+let trans edge x = 
+  let (d, es) = x in
+  match d with
+  | Some r -> (match edge with 
+    | a~b -> (Some { l = r.l + 1; h = a }, let old_count = es[edge] in es[edge := old_count + 1]))
+  | None -> x
+
+let merge node x y = 
+  let (d1, e1) = x in
+  let (d2, e2) = y in
+  match (d1, d2) with
+  | (None, _) -> y
+  | (_, None) -> x
+  | (Some a, Some b) -> if a.l < b.l then if a.l = b.l && a.h <n b.h then x else y else y
+
+let sol = solution { init = init; trans = trans; merge = merge; }
+
+let full = foldNodes (fun n s acc -> let (d, es) = s in combine es acc) sol (createDict 0)
+
+assert foldEdges (fun e v acc -> v < 2 && acc) full true

@@ -41,14 +41,14 @@ let merge node x y = match (x,y) with
     if a.length < b.length then x else y
 
 let assert node soln = match soln with
-  | Some r -> if node >n 4n then !r.secret else true
+  | Some r -> if node <n 5n then r.secret else !r.secret
   | None -> false
 
 let partition node = if node <n 5n then 0u8 else 1u8
 
 let interface edge = 
-  let notSecret a = match a with
-    | Some r -> true
+  let hasRoute a = match a with
+    | Some r -> r.length > 0
     | None -> false
   in
   let any a = true in
@@ -58,10 +58,10 @@ let interface edge =
      executed along the input~base edge. Hence, we don't
      need to actually ensure that the secret is not being 
      sent at the output end because of this behavior. *)
-  | 2~5 -> Some notSecret
-  | 3~5 -> Some notSecret
-  | 3~8 -> Some notSecret
-  | 5~2 -> Some any
-  | 5~3 -> Some any
-  | 8~3 -> Some any
+  | 2~5 -> Some hasRoute
+  | 3~5 -> Some hasRoute
+  | 3~8 -> Some hasRoute
+  | 5~2 -> Some (fun a -> true)
+  | 5~3 -> Some (fun a -> true)
+  | 8~3 -> Some (fun a -> true)
   | _ -> None

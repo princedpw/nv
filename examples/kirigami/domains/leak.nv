@@ -1,0 +1,66 @@
+(* An example of a network where we want to enforce 
+   that 2 domains don't share information. *)
+
+type route = { length: int; secret: int }
+type attribute = option[route]
+
+let nodes = 9
+
+let edges = {
+  0=1;
+  1=2;
+  0=2;
+  2=3;
+  1=4;
+  3=4;
+  5=6;
+  6=7;
+  7=8;
+  2=5;
+  3=5;
+  3=8;
+}
+
+let init n = match n with
+  | 0n -> Some { length = 0; secret = 0 }
+  | _ -> None
+
+let trans edge x = match x with
+| None -> None
+| Some r -> Some (let length = r.length + 1 in
+  match edge with
+  | 2~5 -> { length = length; secret = r.secret + 1 }
+  | 3~5 -> { length = length; secret = r.secret + 1 }
+  | 3~8 -> { length = length; secret = r.secret + 1 }
+  | _ -> { length = length; secret = r.secret })
+
+let merge node x y = match (x,y) with
+  | (_, None) -> x
+  | (None, _) -> y
+  | (Some a, Some b) ->
+    if a.length < b.length then x else y
+
+let assert node soln = match soln with
+  | Some r -> if node <n 5n then (r.secret = 0) else (r.secret = 1)
+  | None -> false
+
+let partition node = if node <n 5n then 0u8 else 1u8
+
+let interface edge = 
+  let hasRouteSecret a = match a with
+    | Some r -> r.length > 0 && r.secret = 0
+    | None -> false
+  in
+  let hasRoute a = match a with
+  | Some r -> r.length > 0
+  | None -> false
+  in
+  let any a = true in
+  match edge with
+  | 2~5 -> Some hasRouteSecret
+  | 3~5 -> Some hasRouteSecret
+  | 3~8 -> Some hasRouteSecret
+  | 5~2 -> Some any
+  | 5~3 -> Some hasRoute
+  | 8~3 -> Some hasRoute
+  | _ -> None

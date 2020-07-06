@@ -1,0 +1,38 @@
+(* Capacity of flows in a network, using a procedure similar to checking resilience. *)
+type attribute = option[int]
+
+symbolic capacity : dict[tedge, int]
+
+(* Require every edge to have a cost of at least 1 *)
+require (foldEdges (fun e x acc -> acc && (x > 0)) capacity true)
+(* Require the total costs to be below some value *)
+require (foldEdges (fun e x acc -> acc + x) capacity 0) <= 16
+
+let nodes = 5
+
+let edges = {
+  0=1;
+  0=2;
+  1=3;
+  2=3;
+  3=4;
+}
+
+let min x y = if x < y then x else y
+
+let init node = match node with
+  | 0n -> Some 6
+  | _ -> None
+
+let trans edge x = match x with
+  | Some y -> let cost = min y (capacity[edge]) in Some cost (* if cost > 4 then None else Some cost *)
+  | None -> None
+
+let merge node x y = match (x, y) with
+  | (None, _) -> y
+  | (_, None) -> x
+  | (Some a, Some b) -> if a < b then x else y
+
+let assert node x = match x with
+  | Some x -> x > 0
+  | None -> false
