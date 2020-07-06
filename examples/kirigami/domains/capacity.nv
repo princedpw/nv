@@ -31,6 +31,8 @@ let merge node x y =
 
 let sol = solution { init = init; trans = trans; merge = merge; }
 
-let full = foldNodes (fun n s acc -> let (d, es) = s in combine es acc) sol (createDict 0)
+let joinMaps m1 m2 = combine (fun v1 v2 -> v1 + v2) m1 m2
 
-assert foldEdges (fun e v acc -> v < 2 && acc) full true
+let accumulateEdges sol = foldNodes (fun n s acc -> let (d, es) = s in joinMaps es acc) sol (createDict 0)
+
+assert (let m = (accumulateEdges sol) in m[0~1] = 2 && m[1~2] = 4)
