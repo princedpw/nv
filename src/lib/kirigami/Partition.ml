@@ -87,7 +87,7 @@ let divide_decls (cfg: Cmdline.t) (decls: declarations) ~(base_check: bool) : de
         | None -> fun (_: Edge.t) -> None
       in
       (* TODO: change this to a cmdline parameter *)
-      let tcomp : transcomp = InputTrans in
+      let tcomp : transcomp = OutputTrans in
       let partitioned_srps = partition_edges node_list edges partf intf_opt tcomp in
       let create_new_decls (parted_srp : partitioned_srp) : declarations =
         (* TODO: node_map and edge_map describe how to remap each node and edge in the new SRP.
