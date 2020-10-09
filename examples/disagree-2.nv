@@ -1,0 +1,51 @@
+(* vim: set syntax=ocaml: *)
+(* Pointwise extension of the DISAGREE example from Griffin et al. *)
+
+type attribute = (option[int], option[int])
+
+let nodes = 3
+let edges = {
+  0=1;
+  0=2;
+  1=2;
+}
+
+let init n =
+  match n with
+  | 0n -> (Some 0, None)
+  | 1n -> (None, Some 0)
+  | _ -> (None, None)
+
+let transPart x = match x with
+  | None -> None
+  | Some y -> Some (y + 1)
+
+let trans e x = let (x1, x2) = x in
+  (transPart x1, transPart x2)
+
+let mergePart x y =
+  match (x,y) with
+  | (None, _) -> y
+  | (_, None) -> x
+  | (Some 0, Some a2) -> x
+  | (Some a1, Some 0) -> y
+  | (Some 2, Some a2) -> x
+  | (Some a1, Some 2) -> y
+  | (Some a1, Some a2) ->
+    if a1 < a2 then x else y (* Otherwise standard order *)
+
+let merge n x y =
+  let (x1, x2) = x in
+  let (y1, y2) = y in
+  (mergePart x1 y1, mergePart x2 y2)
+
+let lePart x t = match x with
+  | Some x -> x <= t
+  | _ -> false
+
+let assert n x =
+  let (x1, x2) = x in
+  match n with
+  | 1n -> lePart x1 2
+  | 2n -> lePart x1 2 && lePart x2 2
+  | 0n -> lePart x2 2

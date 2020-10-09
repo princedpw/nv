@@ -1,0 +1,23 @@
+include "../disagree-2.nv"
+
+let partition n = match n with
+  | 0n -> 0u8
+  | 1n -> 1u8
+  | 2n -> 2u8
+
+let interface e =
+  let eq t x = match x with
+    | Some a -> a = t
+    | None -> false
+  in
+  let le t x = match x with
+    | Some a -> a <= t
+    | None -> false
+  in
+  match e with
+  | 0~1 -> Some (fun a -> let (a1, a2) = a in eq 1 a1)
+  | 1~0 -> Some (fun a -> let (a1, a2) = a in eq 1 a2)
+  | 0~2 -> Some (fun a -> let (a1, a2) = a in eq 1 a1 && le 3 a2)
+  | 2~0 -> Some (fun a -> let (a1, a2) = a in le 3 a2)
+  | 1~2 -> Some (fun a -> let (a1, a2) = a in le 3 a1 && eq 1 a2)
+  | 2~1 -> Some (fun a -> let (a1, a2) = a in le 3 a1)

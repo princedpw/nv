@@ -1,0 +1,25 @@
+let nodes = 3
+let edges = { 0=1; 0-2; 1-2; }
+
+type attribute = int
+
+let trans e x = match e with
+  | 0~1 -> x
+  | 1~0 -> x
+  | _ -> x + 1
+
+let merge n x y = if x < y then x else y
+
+let init n = match n with
+  | 0n -> 1
+  | 1n -> 1
+  | 2n -> 16
+
+let assert n x = x <= 1
+
+let partition n = if n = 2n then 1u8 else 0u8
+
+let interface e = match e with
+  | 0~2 -> Some (fun a -> a = 0)
+  | 1~2 -> Some (fun a -> a = 0)
+  | _ -> None
