@@ -7,6 +7,8 @@ open Nv_solution
 type input_exp =
   { (* the associated original edge *)
     edge : E.t
+  ; (* the associated base node *)
+    base : Vertex.t
   ; (* the variable associated with the input node *)
     var : Var.t
   ; (* the partition rank of the associated output *)
@@ -47,8 +49,10 @@ type partitioned_srp =
      * on the hypothesis symbolic variable, and to the
      * output node as an `assert` on the solution
      *)
-    inputs : input_exp list VertexMap.t
-  ; outputs : (Edge.t * exp option) list VertexMap.t
+    (* map from input nodes to their base node *)
+    inputs : input_exp VertexMap.t
+  ; (* map from base nodes to their outputs *)
+    outputs : (Edge.t * exp option) list VertexMap.t
   }
 
 val partition_edges

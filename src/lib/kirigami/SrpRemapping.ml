@@ -9,6 +9,8 @@ open Nv_datastructures
 type input_exp =
   { (* the associated original edge *)
     edge : E.t
+  ; (* the associated base node *)
+    base : Vertex.t
   ; (* the variable associated with the input node *)
     var : Var.t
   ; (* the partition rank of the associated output *)
@@ -49,8 +51,10 @@ type partitioned_srp =
      * on the hypothesis symbolic variable, and to the
      * output node as an `assert` on the solution
      *)
-    inputs : input_exp list VertexMap.t
-  ; outputs : (Edge.t * exp option) list VertexMap.t
+    (* map from input nodes to their base node *)
+    inputs : input_exp VertexMap.t
+  ; (* map from base nodes to their outputs *)
+    outputs : (Edge.t * exp option) list VertexMap.t
   }
 
 (** Map each vertex in the list of vertices to a partition number.
@@ -151,10 +155,18 @@ let map_edges_to_parts partitions (old_edge, (edge, srp_edge)) =
       then (
         (* construct the record of the new input information: used when creating the
          * symbolic variable and the require predicate *)
+        let innode = partition.nodes in
+        let new_edge = Edge.create innode () v in
         let hyp_var = Var.fresh (Printf.sprintf "hyp_%s" (Edge.to_string old_edge)) in
-        let input_exp = { edge = old_edge; var = hyp_var; rank = i1; pred = None } in
+        let input_exp =
+          { base = v; edge = old_edge; var = hyp_var; rank = i1; pred = None }
+        in
         { partition with
-          inputs = VertexMap.modify_def [] v (List.cons input_exp) partition.inputs
+          nodes = partition.nodes + 1
+        ; edges =
+            new_edge :: partition.edges
+            (* ; edge_map = EdgeMap.add old_edge (Some new_edge) partition.edge_map *)
+        ; inputs = VertexMap.add innode input_exp partition.inputs
         })
       else
         (* neither case, mark edge as absent and continue *)

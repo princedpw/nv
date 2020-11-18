@@ -49,6 +49,6 @@ let init node =
   | 0n -> 0
   | _ -> 10
 
-let sol = solution {init = init; trans = trans; merge = merge; interface = interface}
+let sol = solution {init = init; trans = trans; merge = merge; interface = interface; ltrans = trans}
 
 assert foldNodes (fun u v acc -> acc && v < 2) sol true

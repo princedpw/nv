@@ -83,50 +83,25 @@ let apply_trans ty e t x =
  * The expression that is passed in should be a function which has
  * a single parameter of type tnode.
  *)
-let transform_init (init : exp) (trans : exp option) (merge : exp) ty parted_srp
-    : Syntax.exp
-  =
-  let interp = InterpPartialFull.interp_partial in
+let transform_init (init : exp) ty parted_srp : Syntax.exp =
   let ({ node_map; inputs; _ } : SrpRemapping.partitioned_srp) = parted_srp in
   let node_var = Var.fresh "node" in
   (* function we recursively call to build up the new base node init *)
-  let merge_input node node_exp input_exp =
-    let ({ var; edge; _ } : SrpRemapping.input_exp) = input_exp in
-    let input_exp = annot ty (evar var) in
-    (* perform the input transfer on the input exp *)
-    let trans_input_exp =
-      Option.apply (Option.map (apply_trans ty edge) trans) input_exp
-    in
-    (* perform the merge function, using the given node and its current value with the input variable *)
-    let curried_node =
-      interp
-        (annot
-           (TArrow (TArrow (ty, ty), ty))
-           (eapp merge (annot TNode (node_to_exp node))))
-    in
-    let curried_node_exp = annot (TArrow (ty, ty)) (eapp curried_node node_exp) in
-    interp (wrap node_exp (eapp curried_node_exp trans_input_exp))
+  let add_input_branch u { var; _ } =
+    let exp = annot ty (evar var) in
+    addBranch (node_to_pat u) exp
   in
-  (* we use both node names here since the inputs are organized acc. to new node name, while the old node name
-   * is needed to interpret the old function *)
-  let map_nodes new_node old_node =
-    let interp_old_node =
-      InterpPartialFull.interp_partial_fun init [node_to_exp old_node]
-    in
-    match VertexMap.Exceptionless.find new_node inputs with
-    | Some input_nodes ->
-      List.fold_left
-        (fun e input -> merge_input old_node e input)
-        interp_old_node
-        input_nodes
-    | None -> interp_old_node
+  let map_nodes _ old_node =
+    InterpPartialFull.interp_partial_fun init [node_to_exp old_node]
   in
   let branches = match_of_node_map node_map map_nodes emptyBranch in
+  let input_branches = VertexMap.fold add_input_branch inputs branches in
   (* the returned expression should be a function that takes a node as input with the following body:
    * a match with node as the exp and output_branches as the branches *)
   wrap
     init
-    (efunc (funcFull node_var (Some TNode) (Some ty) (amatch node_var TNode branches)))
+    (efunc
+       (funcFull node_var (Some TNode) (Some ty) (amatch node_var TNode input_branches)))
 ;;
 
 (* Pass in the original trans Syntax.exp and update it to perform
@@ -134,10 +109,14 @@ let transform_init (init : exp) (trans : exp option) (merge : exp) ty parted_srp
  * The expression that is passed in should be a function which has
  * two parameters of types tedge and attribute
  *)
-let transform_trans (e : exp) (attr : ty) (parted_srp : SrpRemapping.partitioned_srp)
+let transform_trans
+    (e : exp)
+    (intrans : exp option)
+    (attr : ty)
+    (parted_srp : SrpRemapping.partitioned_srp)
     : Syntax.exp
   =
-  let ({ edge_map; _ } : SrpRemapping.partitioned_srp) = parted_srp in
+  let ({ edge_map; inputs; _ } : SrpRemapping.partitioned_srp) = parted_srp in
   (* new function argument *)
   let edge_var = Var.fresh "edge" in
   let x_var = Var.fresh "x" in
@@ -145,15 +124,24 @@ let transform_trans (e : exp) (attr : ty) (parted_srp : SrpRemapping.partitioned
   let interp_trans edge =
     InterpPartialFull.interp_partial (annot attr (apps e [edge; annot attr (evar x_var)]))
   in
+  let add_input_branch u { base; edge; _ } =
+    let var = annot attr (evar x_var) in
+    let apply_intrans t v =
+      InterpPartialFull.interp_partial (annot attr (apps t [edge_to_exp edge; v]))
+    in
+    let exp = Option.apply (Option.map apply_intrans intrans) var in
+    addBranch (edge_to_pat (u, base)) exp
+  in
   let edge_map_match = match_of_edge_map edge_map emptyBranch in
   let branches = mapBranches (fun (pat, edge) -> pat, interp_trans edge) edge_map_match in
+  let input_branches = VertexMap.fold add_input_branch inputs branches in
   let x_lambda =
     efunc
       (funcFull
          x_var
          (Some attr)
          (Some attr)
-         (annot attr (amatch edge_var TEdge branches)))
+         (annot attr (amatch edge_var TEdge input_branches)))
   in
   let lambda =
     efunc (funcFull edge_var (Some TEdge) (Some (TArrow (attr, attr))) x_lambda)
@@ -162,7 +150,7 @@ let transform_trans (e : exp) (attr : ty) (parted_srp : SrpRemapping.partitioned
 ;;
 
 let transform_merge (e : exp) (ty : ty) (parted_srp : SrpRemapping.partitioned_srp) : exp =
-  let ({ node_map; _ } : SrpRemapping.partitioned_srp) = parted_srp in
+  let ({ node_map; inputs; _ } : SrpRemapping.partitioned_srp) = parted_srp in
   (* the internal type after matching on the node *)
   let inner_ty = TArrow (ty, TArrow (ty, ty)) in
   let node_var = Var.fresh "node" in
@@ -173,10 +161,20 @@ let transform_merge (e : exp) (ty : ty) (parted_srp : SrpRemapping.partitioned_s
   let branches =
     match_of_node_map node_map (fun _ old -> interp_old e (node_to_exp old)) emptyBranch
   in
+  let add_input_branch u { edge; _ } =
+    let _, v = edge in
+    let exp = interp_old e (node_to_exp v) in
+    addBranch (node_to_pat u) exp
+  in
+  let input_branches = VertexMap.fold add_input_branch inputs branches in
   wrap
     e
     (efunc
-       (funcFull node_var (Some TNode) (Some inner_ty) (amatch node_var TNode branches)))
+       (funcFull
+          node_var
+          (Some TNode)
+          (Some inner_ty)
+          (amatch node_var TNode input_branches)))
 ;;
 
 (* Check that the solution's value at a particular output vertex satisfies the predicate. *)
@@ -218,12 +216,41 @@ let outputs_assert
   VertexMap.fold add_preds outputs []
 ;;
 
-let transform_assert (e : exp) (_parted_srp : SrpRemapping.partitioned_srp) : exp =
+let transform_assert (e : exp) (parted_srp : SrpRemapping.partitioned_srp) : exp =
   (* TODO: drop expressions or simplify them to true if they reference nodes we don't have access to *)
   (* NOTE: this may not even be occurring in the assert itself, but in another part of the program;
    * although maybe that's fine if it's already inlined *)
-  (* TODO: can use the SrpRemapping transformer to handle this! *)
-  e
+  (* count the number of base nodes *)
+  let base_nodes =
+    VertexMap.fold
+      (fun _ v acc -> acc + if Option.is_some v then 1 else 0)
+      parted_srp.node_map
+      0
+  in
+  let v_base = annot TNode (e_val (vnode base_nodes)) in
+  let node_var = Var.fresh "node" in
+  let skip_input_fn ty body =
+    let inner_fn = deconstructFun body in
+    let inner_inner_fn = deconstructFun inner_fn.body in
+    let sol_ty = inner_fn.argty in
+    let acc_ty = inner_inner_fn.argty in
+    let sol_var = Var.fresh "x" in
+    let acc_var = Var.fresh "acc" in
+    (* TODO: do we need to annotate these functions? *)
+    let acc_id =
+      efunc (funcFull acc_var acc_ty acc_ty (annot (acc_ty |> Option.get) (evar acc_var)))
+    in
+    let skip_fn = efunc (funcFull sol_var sol_ty inner_fn.resty acc_id) in
+    let node_cmp = annot TBool (eop NLess [annot TNode (evar node_var); v_base]) in
+    let if_exp = annot (ty |> Option.get) (eif node_cmp body skip_fn) in
+    efunc (funcFull node_var (Some TNode) ty if_exp), acc_ty
+  in
+  match e.e with
+  | EOp (MFoldNode, [fn; sol; acc]) ->
+    let f = deconstructFun fn in
+    let new_fn, resty = skip_input_fn f.resty f.body in
+    annot (resty |> Option.get) (eop MFoldNode [new_fn; sol; acc])
+  | _ -> e
 ;;
 
 (** Helper function to extract the edge predicate
@@ -261,10 +288,7 @@ let transform_solve solve (partition : SrpRemapping.partitioned_srp)
     { partition with
       inputs =
         VertexMap.map
-          (fun input_exps ->
-            List.map
-              (fun input_exp -> { input_exp with pred = intf_opt input_exp.edge })
-              input_exps)
+          (fun input_exp -> { input_exp with pred = intf_opt input_exp.edge })
           partition.inputs
     ; outputs =
         VertexMap.map
@@ -281,19 +305,15 @@ let transform_solve solve (partition : SrpRemapping.partitioned_srp)
     (* default behaviour: perform the transfer on the output side *)
     | None -> Some trans, None
   in
-  let init' = transform_init init intrans merge attr_type partition' in
-  let trans' = transform_trans trans attr_type partition' in
+  let init' = transform_init init attr_type partition' in
+  let trans' = transform_trans trans intrans attr_type partition' in
   let merge' = transform_merge merge attr_type partition' in
   (* TODO: should we instead create separate let-bindings to refer to init, trans and merge? *)
   let assertions = outputs_assert outtrans var_names attr_type partition' in
-  let add_require _ input_exps m =
-    List.fold_left
-      (fun m { var; rank; pred; _ } ->
-        match pred with
-        | Some p -> Map.add (annot TBool (eapp p (annot attr_type (evar var)))) rank m
-        | None -> m)
-      m
-      input_exps
+  let add_require _ { var; rank; pred; _ } m =
+    match pred with
+    | Some p -> Map.add (annot TBool (eapp p (annot attr_type (evar var)))) rank m
+    | None -> m
   in
   let reqs = VertexMap.fold add_require partition'.inputs Map.empty in
   ( { solve with

@@ -125,13 +125,12 @@ let alpha_convert_declaration bmap (env : Var.t Env.t) (d : declaration) =
     let interface = omap (alpha_convert_exp env) interface in
     let decomp =
       match decomp with
-      | Some (lt, rt) -> Some (omap (alpha_convert_exp env) lt, omap (alpha_convert_exp env) rt)
+      | Some (lt, rt) ->
+        Some (omap (alpha_convert_exp env) lt, omap (alpha_convert_exp env) rt)
       | None -> None
     in
     let init, trans, merge =
-      ( alpha_convert_exp env init
-      , alpha_convert_exp env trans
-      , alpha_convert_exp env merge )
+      alpha_convert_exp env init, alpha_convert_exp env trans, alpha_convert_exp env merge
     in
     let env, y = rename_solve_vars bmap env var_names in
     env, DSolve { aty; var_names = y; init; trans; merge; interface; decomp }
@@ -175,7 +174,7 @@ let alpha_convert_declarations (ds : declarations) =
 ;;
 
 let alpha_convert_partitioned_declarations (pds : partitioned_decls) =
-  let { network; properties; guarantees; lesser_hyps; greater_hyps } = pds in
+  let { network; properties; guarantees; lesser_hyps; greater_hyps; _ } = pds in
   (* Renaming order: network loaded into env first, then everything else *)
   let bmap = ref Collections.VarMap.empty in
   let netprog, netenv = alpha_convert_aux bmap Env.empty network in
@@ -183,7 +182,8 @@ let alpha_convert_partitioned_declarations (pds : partitioned_decls) =
   let guarprog, _ = alpha_convert_aux bmap netenv guarantees in
   let lhprog, _ = alpha_convert_aux bmap netenv lesser_hyps in
   let ghprog, _ = alpha_convert_aux bmap netenv greater_hyps in
-  ( { network = netprog
+  ( { pds with
+      network = netprog
     ; properties = propprog
     ; guarantees = guarprog
     ; lesser_hyps = lhprog

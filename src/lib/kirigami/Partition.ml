@@ -23,10 +23,19 @@ type partitioned_decls =
     properties : declaration list
   ; (* all other network decls, including those defining essential behaviour (init, trans, merge) *)
     network : declaration list
+  ; (* number of base nodes in partition *)
+    base_nodes : int
   }
 
 let of_decls d =
-  { lesser_hyps = []; greater_hyps = []; guarantees = []; properties = []; network = d }
+  let base_nodes = get_nodes d |> oget in
+  { lesser_hyps = []
+  ; greater_hyps = []
+  ; guarantees = []
+  ; properties = []
+  ; network = d
+  ; base_nodes
+  }
 ;;
 
 (** Helper function to extract the partition index
@@ -98,9 +107,14 @@ let divide_decls (cfg : Cmdline.t) (decls : declarations) : partitioned_decls li
         in
         print_endline @@ VertexMap.to_string remap_node parted_srp.node_map)
       else ();
-      let add_symbolics _ inputs l =
-        List.fold_left (fun l { var; _ } -> DSymbolic (var, Ty attr_type) :: l) l inputs
+      (* count the number of base nodes *)
+      let base_nodes =
+        VertexMap.fold
+          (fun _ v acc -> acc + if Option.is_some v then 1 else 0)
+          parted_srp.node_map
+          0
       in
+      let add_symbolics _ { var; _ } l = DSymbolic (var, Ty attr_type) :: l in
       let symbolics = VertexMap.fold add_symbolics parted_srp.inputs [] in
       (* replace relevant old declarations *)
       let transformed_decls = List.map (transform_declaration parted_srp) decls in
@@ -121,14 +135,21 @@ let divide_decls (cfg : Cmdline.t) (decls : declarations) : partitioned_decls li
       let network, guarantees, lesser_hyps, greater_hyps, properties =
         split_decls ([], [], [], [], []) transformed_decls
       in
-      { lesser_hyps; greater_hyps; guarantees; properties; network = symbolics @ network }
+      { lesser_hyps
+      ; greater_hyps
+      ; guarantees
+      ; properties
+      ; network = symbolics @ network
+      ; base_nodes
+      }
     in
     List.map create_new_decls partitioned_srps
   | None -> [of_decls decls]
 ;;
 
 let lift (f : declarations -> declarations) decls =
-  { lesser_hyps = f decls.lesser_hyps
+  { decls with
+    lesser_hyps = f decls.lesser_hyps
   ; greater_hyps = f decls.greater_hyps
   ; guarantees = f decls.guarantees
   ; properties = f decls.properties
@@ -143,11 +164,18 @@ let lift_mb (f : declarations -> declarations * Nv_solution.Solution.map_back) d
   let g, _gf = f decls.guarantees in
   let p, _pf = f decls.properties in
   let n, nf = f decls.network in
-  { lesser_hyps = lh; greater_hyps = gh; guarantees = g; properties = p; network = n }, nf
+  ( { decls with
+      lesser_hyps = lh
+    ; greater_hyps = gh
+    ; guarantees = g
+    ; properties = p
+    ; network = n
+    }
+  , nf )
 ;;
 
 let partitions_to_string ?(show_types = false) decls =
-  let { lesser_hyps; greater_hyps; guarantees; properties; network } = decls in
+  let { lesser_hyps; greater_hyps; guarantees; properties; network; _ } = decls in
   let print = Printing.declarations_to_string ~show_types in
   print network
   ^ "\n"

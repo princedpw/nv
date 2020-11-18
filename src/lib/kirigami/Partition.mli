@@ -19,6 +19,8 @@ type partitioned_decls =
     properties : declaration list
   ; (* all other network decls, including those defining essential behaviour (solution, topology) *)
     network : declaration list
+  ; (* number of base nodes in partition *)
+    base_nodes : int
   }
 
 val of_decls : declaration list -> partitioned_decls

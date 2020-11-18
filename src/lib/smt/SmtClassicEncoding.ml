@@ -360,7 +360,7 @@ module ClassicEncoding (E : SmtEncodingSigs.ExprEncoding) : ClassicEncodingSig =
   ;;
 
   let kirigami_encode_z3 (decls : Partition.partitioned_decls) : SmtUtils.smt_env =
-    let ({ lesser_hyps; greater_hyps; guarantees; properties; network }
+    let ({ lesser_hyps; greater_hyps; guarantees; properties; network; _ }
           : Partition.partitioned_decls)
       =
       decls
@@ -371,9 +371,10 @@ module ClassicEncoding (E : SmtEncodingSigs.ExprEncoding) : ClassicEncodingSig =
     let graph = get_graph network |> oget in
     let solves = get_solves network in
     let simplify_assertion e =
-      let etrue = Syntax.e_val (Syntax.vbool true) in
+      let _etrue = Syntax.e_val (Syntax.vbool true) in
       let simplified = InterpPartialFull.interp_partial e in
-      if Syntax.equal_exps ~cmp_meta:false etrue simplified then None else Some simplified
+      Some simplified
+      (* if Syntax.equal_exps ~cmp_meta:false etrue simplified then None else Some simplified *)
     in
     let g_assertions = get_asserts guarantees |> List.filter_map simplify_assertion in
     let p_assertions = get_asserts properties |> List.filter_map simplify_assertion in
@@ -382,6 +383,7 @@ module ClassicEncoding (E : SmtEncodingSigs.ExprEncoding) : ClassicEncodingSig =
     let gh_requires = get_requires greater_hyps in
     let env = init_solver symbolics ~labels:[] in
     List.iteri (encode_solve env graph) solves;
+    (* print_endline ("asserts: " ^ string_of_int (List.length (g_assertions @ p_assertions))); *)
     let add_assertions env assertions =
       match assertions with
       | [] -> ()
