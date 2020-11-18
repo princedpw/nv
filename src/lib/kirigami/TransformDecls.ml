@@ -126,6 +126,8 @@ let transform_trans
   in
   let add_input_branch u { base; edge; _ } =
     let var = annot attr (evar x_var) in
+    (* this function is different from interp_trans since we want to just return the var
+     * in the case where the intrans is None *)
     let apply_intrans t v =
       InterpPartialFull.interp_partial (annot attr (apps t [edge_to_exp edge; v]))
     in
