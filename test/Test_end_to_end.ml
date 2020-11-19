@@ -281,7 +281,7 @@ let tests =
   >::: List.map make_ounit_test
        @@ simulator_tests
        @ smt_tests
-       @ hiding_tests
+       (* @ hiding_tests *)
        (* slicing_tests @ *)
        @ bv_tests
        @ parallel_tests

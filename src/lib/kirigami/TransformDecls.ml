@@ -280,6 +280,7 @@ let transform_solve solve (partition : SrpRemapping.partitioned_srp)
     : solve * exp list * (exp, int) Map.t
   =
   let ({ aty; var_names; init; trans; merge; interface; decomp } : solve) = solve in
+  (* print_endline "in transform_solve"; *)
   let intf_opt : Edge.t -> exp option =
     match interface with
     | Some intfe -> interp_interface intfe
@@ -324,6 +325,7 @@ let transform_solve solve (partition : SrpRemapping.partitioned_srp)
     ; merge = merge'
     ; (* should this be erased, or kept as reference? *)
       interface = None
+    ; decomp = None
     }
   , assertions
   , reqs )

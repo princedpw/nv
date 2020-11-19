@@ -106,7 +106,7 @@ let init node =
       let o = None in
       let b = None in
       let fib = best c s o b in
-      let d = d[10.0.3.0/31 := (c,s,o,b,fib)] in
+      let d = d[(167772928,31) := (c,s,o,b,fib)] in
       let c = Some 0 in
       let s = None in
       let o = None in

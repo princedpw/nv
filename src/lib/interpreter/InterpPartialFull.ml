@@ -219,6 +219,48 @@ let rec matchExp branches pe1 =
     else Delayed
 ;;
 
+let rec matchExpPatFull pat pe1 env =
+  (* Printf.printf
+   *   "pat:%s, exp:%s\n"
+   *   (Printing.pattern_to_string pat)
+   *   (Printing.exp_to_string pe1); *)
+  match pat, pe1.e with
+  | PWild, _ -> Match env
+  | PUnit, _ -> Match env
+  | PVar x, _ -> Match (Env.update env x pe1)
+  | POption (Some p), ESome e -> matchExpPatFull p e env
+  | POption None, ESome _ -> NoMatch
+  | PTuple ps, ETuple es ->
+    (match ps, es with
+    | [], [] -> Match env
+    | p :: ps, e :: es ->
+      (match matchExpPatFull p e env with
+      | Delayed -> Delayed
+      | Match env -> matchExpPatFull (PTuple ps) (etuple es) env
+      | NoMatch -> NoMatch)
+    | _, _ -> Delayed)
+  | _, EVal _ -> matches pat pe1
+  | _, _ -> Delayed
+;;
+
+(* more aggressive expression matcher.
+ * will look at every branch instead of just the first. *)
+(* procedure:
+ * check each branch for the pattern.
+ * if the branch *could* match, but we're not sure, stop and return Delayed
+ * if it definitely can't match, continue
+ * if it matches, return Match *)
+(* TODO: remove branches that can't match *)
+let rec matchExpFull branches pe1 =
+  match popBranch branches with
+  | (pat, e), branches' ->
+    (match matchExpPatFull pat pe1 Env.empty with
+    | Delayed -> Delayed
+    | Match env -> Match (env, e)
+    | NoMatch ->
+      if isEmptyBranch branches' then failwith "No match?" else matchExpFull branches' pe1)
+;;
+
 (* I guess this means we only try to match supposedly-irrefutable patterns *)
 
 let rec match_branches branches v =
@@ -229,7 +271,7 @@ let rec match_branches branches v =
     match lookUpPat (val_to_pat (to_value v)) branches with
     | Found e -> Match (Env.empty, e)
     | Rest ls -> match_branches_lst ls v)
-  else matchExp branches v
+  else matchExpFull branches v
 ;;
 
 (** Assumes that inlining has been performed.  Not CBN in the
@@ -343,15 +385,16 @@ and interp_op_partial env ty op es =
           vtuple (hd @ velts @ tl)
         | _ -> failwith "Bad TSet")
     | MCreate, [v] ->
-      ignore v; ignore ty;
+      ignore v;
+      ignore ty;
       (* Doing this before map unrolling was breaking stuff, so I'm disabling it
          for now. We could imagine having a flag that tells you whether or not
          to simplify map operations, but I suspect for the most part we just
          don't want to in the first case *)
       failwith "Disabled"
       (* (match get_inner_type ty with
-      | TMap (kty, _) -> vmap (BddMap.create ~key_ty:kty v)
-      | _ -> failwith "runtime error: missing map key type") *)
+         | TMap (kty, _) -> vmap (BddMap.create ~key_ty:kty v)
+         | _ -> failwith "runtime error: missing map key type") *)
     | MGet, [{ v = VMap m }; v] -> BddMap.find m v
     | MSet, [{ v = VMap m }; vkey; vval] -> vmap (BddMap.update m vkey vval)
     | MMap, [{ v = VClosure (c_env, f) }; { v = VMap m }] ->
