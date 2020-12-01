@@ -110,15 +110,15 @@ let divide_decls (cfg: Cmdline.t) (decls: declarations) ~(base_check: bool) : de
         in
         let new_symbolics = VertexMap.fold add_symbolic parted_srp.inputs [] in
         (* If we are generating a base check, then do not add any requires clauses *)
-        let new_requires = if base_check then
-            []
-          else
-            let add_require _ ({var; pred; _} : input_exp) l =
-              match pred with
-              | Some p -> DRequire (annot TBool (eapp p (annot attr_type (evar var)))) :: l
-              | None -> l
-            in
-            VertexMap.fold add_require parted_srp.inputs []
+        let add_require _ ({var; pred; rank; _} : input_exp) (l1, l2) =
+          match pred with
+          | Some p ->
+            let req = DRequire (annot TBool (eapp p (annot attr_type (evar var)))) in
+            if rank < parted_srp.rank then (req :: l1, l2) else (l1, req :: l2)
+          | None -> (l1, l2)
+        in
+        let lesser_hyps, greater_hyps =
+          VertexMap.fold add_require parted_srp.inputs ([], [])
         in
         (* replace relevant old declarations *)
         let transformed_decls = List.filter_map (transform_declaration parted_srp attr_type ~base_check:base_check) decls in
@@ -128,7 +128,7 @@ let divide_decls (cfg: Cmdline.t) (decls: declarations) ~(base_check: bool) : de
           | None -> [DAssert (transform_assert None attr_type parted_srp)]
         in
         (* also add requires at the end so they can use any bindings earlier in the file *)
-        new_symbolics @ transformed_decls @ new_requires @ add_assert
+        new_symbolics @ transformed_decls @ lesser_hyps @ greater_hyps @ add_assert
       in
       List.map create_new_decls partitioned_srps
     end

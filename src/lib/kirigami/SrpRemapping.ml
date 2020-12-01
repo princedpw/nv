@@ -40,6 +40,8 @@ type input_exp = {
   base: V.t;
   (* the variable associated with the input node *)
   var: Var.t;
+  (* the rank of the associated output *)
+  rank: int;
   (* the associated predicate expression: a function over attributes *)
   (* optional: if not given, then assumed to always hold *)
   pred: exp option;
@@ -61,6 +63,8 @@ type input_exp = {
  **   in the new SRP
  **)
 type partitioned_srp = {
+  (* the rank of the partitioned SRP *)
+  rank: int;
   (* the number of nodes in the network *)
   nodes: int;
   (* the edges in the network *)
@@ -177,6 +181,7 @@ let map_edges_to_parts predf partitions (old_edge, (edge, srp_edge)) =
           let input_exp = {
             base = v;
             var = Var.fresh (Printf.sprintf "hyp_%s" (Edge.to_string old_edge));
+            rank = i1;
             pred;
           } in
           {
@@ -201,10 +206,10 @@ let divide_edges
     (trans: transcomp)
   : (partitioned_srp list)
   =
-  let partitioned_srp_from_nodes (nodes, node_map) =
-    { nodes; edges = []; node_map; edge_map = EdgeMap.empty; inputs = VertexMap.empty; outputs = VertexMap.empty; trans; }
+  let partitioned_srp_from_nodes rank (nodes, node_map) =
+    { rank; nodes; edges = []; node_map; edge_map = EdgeMap.empty; inputs = VertexMap.empty; outputs = VertexMap.empty; trans; }
   in
-  let initial = List.map partitioned_srp_from_nodes vmaps in
+  let initial = List.mapi partitioned_srp_from_nodes vmaps in
   let new_edges = List.map (fun e -> (e, remap_edge e vmaps)) edges in
   List.fold_left (map_edges_to_parts predf) initial new_edges
 
