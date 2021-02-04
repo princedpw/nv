@@ -188,6 +188,7 @@ let transform_solve solve (partition : partitioned_srp) : partitioned_srp * solv
     p1
   in
   let solve' = remap_solve partition' solve in
+  let solve' = Measure.measure_solve solve' in
   (* erase interface information now that it's in the partition *)
   partition', { solve' with interface = None }
 ;;

@@ -346,7 +346,7 @@ module ClassicEncoding (E : SmtEncodingSigs.ExprEncoding) : ClassicEncodingSig =
       graph
       parted_srp
       count
-      { aty; var_names; init; trans; merge; decomp; global }
+      { aty; var_names; init; trans; merge; decomp }
     =
     let aty = oget aty in
     let einit, etrans, emerge = init, trans, merge in
@@ -728,13 +728,6 @@ module ClassicEncoding (E : SmtEncodingSigs.ExprEncoding) : ClassicEncodingSig =
     in
     (* these constraints are included in all scopes *)
     add_symbolic_constraints env requires VarMap.empty;
-    (* add_assertions "req-global" env apply global_reqs ~negate:false; *)
-    (* global checks *)
-    (* (match global_asserts with
-     * | [] -> ()
-     * | _ ->
-     *   scope_checks env (fun env ->
-     *       add_assertions "assert-global" env apply global_asserts ~negate:true)); *)
     (* ranked initial checks *)
     add_assertions "hypothesis" env apply hyps ~negate:false;
     scope_checks env (fun env ->
